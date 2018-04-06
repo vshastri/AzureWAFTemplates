@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adminPassword": {
+      "value": "secret123456!"
+    },
+    "NumberofWAFinstances": {
+      "value": 3
+    },
+    "storageAccountName": {
+      "value": "vinwafstorage"
+    },
+    "vmName": {
+      "value": "vinwaf"
+    },
+    "ELBDNSName": {
+      "value": "vinwafcluster"
+    },
+    "VnetName": {
+      "value": "vinwafvnet"
+    },
+    "SubnetName": {
+      "value": "vinwafsubnet"
+    },
+    "vmSize": {
+      "value": "Standard_DS1"
+    }
+  }
+}

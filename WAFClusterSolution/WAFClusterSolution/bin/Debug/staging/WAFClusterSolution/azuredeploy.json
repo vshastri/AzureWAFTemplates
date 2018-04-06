@@ -1,0 +1,358 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "NumberofWAFinstances": {
+      "type": "int"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique name for the Storage Account where the machines disks will be placed."
+      }
+    },
+    "storageAccountType": {
+      "defaultValue": "Standard_LRS",
+      "type": "string",
+      "metadata": {
+        "description": "Type of Storage Account chosen"
+      }
+    },
+    "vmName": {
+      "type": "string"
+    },
+    "ELBDNSName": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique DNS Name for the Public IP used to access the WAF."
+      }
+    },
+    "VnetName": {
+      "type": "string"
+    },
+    "SubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Subnet in  which WAF needs to be deployed."
+      }
+    },
+    "addressPrefix": {
+      "defaultValue": "10.0.0.0/16",
+      "type": "string",
+      "metadata": {
+        "description": "Address prefix of the network for Barracuda VM."
+      }
+    },
+    "subnetPrefix": {
+      "defaultValue": "10.0.0.0/24",
+      "type": "string",
+      "metadata": {
+        "description": "Subnet prefix of the network for Barracuda VM."
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "metadata": {
+        "description": "Size of instances"
+      }
+    }
+  },
+  "variables": {
+    "nicNamePrefix": "[concat(parameters('vmName'),'NIC')]",
+    "publicIPAddressType": "Static",
+    "vnetID": "[concat(resourceGroup().id,'/providers/Microsoft.Network/virtualNetworks/', parameters('VnetName'))]",
+    "subnetRef": "[concat(variables('vnetID'),'/subnets/',Parameters('subnetName'))]",
+    "storageAccountTier": "[replace(parameters('storageAccountType'),'_LRS','')]",
+    "numberOfInstances": "[parameters('NumberofWAFInstances')]",
+    "availabilitySetName": "WAFAvSet",
+    "loadbalancername": "[concat(parameters('ELBDNSName'),'LoadBalancer')]",
+    "ELBPublicIP": "[concat(parameters('ELBDNSName'),'IPAddress')]",
+    "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('Loadbalancername'))]",
+    "publicIPAddressID": "[resourceId('Microsoft.Network/publicIPAddresses',variables('ELBPublicIP'))]",
+    "frontEndIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/LoadBalancerFrontEnd')]",
+    "lbPoolID": "[concat(variables('lbID'),'/backendAddressPools/LoadBalancerBackend')]",
+    "lbProbeID80": "[concat(variables('lbID'),'/probes/80Probe')]",
+    "lbProbeID443": "[concat(variables('lbID'),'/probes/443Probe')]"
+
+
+  },
+  "resources": [
+    {
+      "apiVersion": "2016-01-01",
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "wafStorageName"
+      },
+      "kind": "Storage",
+      "sku": {
+        "name": "[parameters('storageAccountType')]",
+        "tier": "[variables('storageAccountTier')]"
+      }
+    },
+    {
+      "apiVersion": "2017-06-01",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[parameters('VnetName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('addressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[parameters('subnetName')]",
+            "properties": {
+              "addressPrefix": "[Parameters('subnetPrefix')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/availabilitySets",
+      "name": "[variables('availabilitySetName')]",
+      "apiVersion": "2016-04-30-preview",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "platformFaultDomainCount": 2,
+        "platformUpdateDomainCount": 2,
+        "managed": false
+      }
+    },
+    {
+      "apiVersion": "2016-06-01",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[concat(variables('ELBPublicIP'))]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "ELBPublicIP"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
+        "dnsSettings": {
+          "domainNameLabel": "[concat(parameters('ELBDNSName'))]"
+        }
+      }
+    },
+    {
+      "apiVersion": "2015-05-01-preview",
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/', variables('ELBPublicIP'))]"
+      ],
+      "location": "[resourceGroup().location]",
+      "name": "[variables('loadBalancerName')]",
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "LoadBalancerFrontEnd",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[variables('publicIPAddressID')]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "LoadBalancerBackend"
+          }
+        ],
+        "copy": {
+          "name": "inboundnatloop",
+          "count": "[variables('numberOfInstances')]"
+        },
+        "loadBalancingRules": [
+          {
+            "name": "HTTPRule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[variables('frontEndIPConfigID')]"
+              },
+              "backendAddressPool": {
+                "id": "[variables('lbPoolID')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 80,
+              "backendPort": 80,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 5,
+              "probe": {
+                "id": "[variables('lbProbeID80')]"
+              }
+            }
+          },
+          {
+            "name": "HTTPSRule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[variables('frontEndIPConfigID')]"
+              },
+              "backendAddressPool": {
+                "id": "[variables('lbPoolID')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 443,
+              "backendPort": 443,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 5,
+              "probe": {
+                "id": "[variables('lbProbeID443')]"
+              }
+            }
+          }
+        ],
+        "probes": [
+          {
+            "name": "443Probe",
+            "properties": {
+              "protocol": "Tcp",
+              "port": 443,
+              "intervalInSeconds": 5,
+              "numberOfProbes": 2
+            }
+          },
+          {
+            "name": "80Probe",
+            "properties": {
+              "protocol": "Tcp",
+              "port": 80,
+              "intervalInSeconds": 5,
+              "numberOfProbes": 2
+            }
+          }
+        ]
+      },
+      "type": "Microsoft.Network/loadBalancers"
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/loadBalancers/inboundNATRules",
+      "copy": {
+        "name": "lbRdpNatLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "name": "[concat('/', variables('loadbalancername'),'/','Admin', copyIndex(0))]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', variables('Loadbalancername'))]"
+      ],
+      "properties": {
+        "frontendIPConfiguration": {
+          "id": "[variables('frontEndIPConfigID')]"
+        },
+        "protocol": "tcp",
+        "frontendPort": "[add(8000, copyIndex())]",
+        "backendPort": 8000,
+        "enableFloatingIP": false
+      }
+    },
+    {
+      "apiVersion": "2016-06-01",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(variables('nicNamePrefix'), copyindex())]",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "nicloop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Network/virtualNetworks/', parameters('VnetName'))]",
+        "[concat('Microsoft.Network/loadBalancers/', variables('Loadbalancername'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[concat(variables('lbID'), '/backendAddressPools/LoadBalancerBackend')]"
+                }
+              ],
+              "loadBalancerInboundNatRules": [
+                {
+                  "id": "[concat(variables('lbID'),'/inboundNatRules/Admin', copyindex())]"
+
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2016-04-30-preview",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat(parameters('vmName'), copyindex())]",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "virtualMachineLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "plan": {
+        "name": "byol",
+        "Product": "waf",
+        "Publisher": "barracudanetworks"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkInterfaces/', variables('nicNamePrefix'), copyindex())]",
+        "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]"
+      ],
+      "properties": {
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets',variables('availabilitySetName'))]"
+
+        },
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('vmName'), copyIndex())]",
+          "adminUsername": "will-be-replaced-by-admin",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "barracudanetworks",
+            "offer": "waf",
+            "sku": "byol",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat('wafosdisk',copyIndex())]",
+            "vhd": {
+              "uri": "[concat('http://',parameters('storageAccountName'),'.blob.core.windows.net/vhds/','wafosdisk', copyIndex(), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('nicNamePrefix'),copyindex()))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": false,
+            "storageUri": "[concat('http://',parameters('storageAccountName'),'.blob.core.windows.net')]"
+          }
+        }
+      }
+    }
+  ]
+}
