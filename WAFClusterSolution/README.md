@@ -11,7 +11,7 @@ Azure Public Load Balancer
 
 How to access deployed WAF instances?
 
- First instance will be avalable http://loadbalanceip:8000 , second one on http://loadbalanceip:8001 and so-on. 
+ First instance will be avalable http://elbdnsname:8000 , second one on http://elbdnsname:8001 and so-on. 
 
 
 
