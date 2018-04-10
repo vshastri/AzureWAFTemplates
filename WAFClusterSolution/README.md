@@ -2,6 +2,8 @@
 
 [![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
 
+[![Visualize in Azure](http://http://armviz.io/visualizebutton.png)](http://armviz.io/)
+
 What does this Solution Deploy? 
 
 Cluster of Barracuda Web Application firewall. Ranging from 1 to n. You get to define the number of instances in the cluster 
