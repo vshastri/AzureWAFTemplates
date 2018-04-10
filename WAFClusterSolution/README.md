@@ -2,7 +2,11 @@
 
 [![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
 
-[![Visualize in Azure](http://http://armviz.io/visualizebutton.png)](http://armviz.io/)
+Visualize button code
+
+<a href="http://armviz.io/#/?load=https://github.com/vshastri/AzureWAFTemplates/blob/master/WAFClusterSolution/azuredeploy.json" target="_blank">
+  <img src="http://armviz.io/visualizebutton.png"/>
+</a>
 
 What does this Solution Deploy? 
 
