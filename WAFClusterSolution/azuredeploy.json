@@ -260,7 +260,7 @@
       "location": "[resourceGroup().location]",
       "copy": {
         "name": "nicloop",
-        "count": "[variables('numberOfInstances')]"
+        "count": "[variables('numberOfInstances'),]"
       },
       "dependsOn": [
         "[concat('Microsoft.Network/virtualNetworks/', parameters('VnetName'))]",
