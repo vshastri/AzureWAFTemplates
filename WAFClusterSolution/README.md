@@ -1,6 +1,6 @@
 # WAF BYOL Cluster SolutionTemplate
 
-<a 
+<a> 
   <img src="https://github.com/vshastri/AzureWAFTemplates/blob/master/WAFClusterSolution/images/BarracudaWAFClusterSolution.png"/>
 </a>
 
