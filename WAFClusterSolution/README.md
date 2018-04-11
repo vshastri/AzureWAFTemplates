@@ -1,5 +1,9 @@
 # WAF BYOL Cluster SolutionTemplate
 
+<a 
+  <img src="https://github.com/vshastri/AzureWAFTemplates/blob/master/WAFClusterSolution/images/BarracudaWAFClusterSolution.png"/>
+</a>
+
 [![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
 
 
